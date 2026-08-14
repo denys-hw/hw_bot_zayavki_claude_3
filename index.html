@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Оформление заказа</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+            padding: 15px;
+            margin: 0;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+            background-color: var(--tg-theme-secondary-bg-color, #f0f0f0);
+            color: var(--tg-theme-text-color, #000000);
+        }
+        .radio-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 5px;
+        }
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: normal;
+        }
+        .radio-label input {
+            width: auto;
+        }
+        #submit-btn {
+            width: 100%;
+            background-color: var(--tg-theme-button-color, #2481cc);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        #submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="form-group">
+        <label for="car-number">1. Номер машины WR- (3 цифры):</label>
+        <input type="number" id="car-number" placeholder="Например: 123" min="100" max="999" required>
+    </div>
+
+    <div class="form-group">
+        <label for="base-select">2. Выберите базу:</label>
+        <select id="base-select" required>
+            <option value="Брюхсаль">Брюхсаль</option>
+            <option value="Шалон">Шалон</option>
+            <option value="Жарска-вешь">Жарска-вешь</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="arrival-time">3. Ориентировочное время прибытия:</label>
+        <input type="time" id="arrival-time" required>
+    </div>
+
+    <div class="form-group">
+        <label>4. Нужно ремонт прицепа?:</label>
+        <div class="radio-group">
+            <label class="radio-label"><input type="radio" name="trailer" value="Да" checked> Да</label>
+            <label class="radio-label"><input type="radio" name="trailer" value="Нет"> Нет</label>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>5. Нужен ремонт тягача?:</label>
+        <div class="radio-group">
+            <label class="radio-label"><input type="radio" name="truck" value="Да" checked> Да</label>
+            <label class="radio-label"><input type="radio" name="truck" value="Нет"> Нет</label>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="comment">6. Что нужно получить?:</label>
+        <textarea id="comment" rows="3" placeholder="Введите ваш текст..." required></textarea>
+    </div>
+
+    <button id="submit-btn" onclick="sendData()">Отправить заказ</button>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.ready();
+
+        // ВАЖНО: замените на URL вашей развёрнутой backend-функции (см. README.md)
+        const BACKEND_URL = 'https://ваш-проект.vercel.app/api/send';
+
+        function sendData() {
+            const btn = document.getElementById('submit-btn');
+            const carNumber = document.getElementById('car-number').value;
+            const base = document.getElementById('base-select').value;
+            const arrivalTime = document.getElementById('arrival-time').value;
+            const trailer = document.querySelector('input[name="trailer"]:checked').value;
+            const truck = document.querySelector('input[name="truck"]:checked').value;
+            const comment = document.getElementById('comment').value;
+
+            if (carNumber.length !== 3) {
+                alert('Номер машины должен состоять ровно из 3 цифр!');
+                return;
+            }
+            if (!arrivalTime) {
+                alert('Укажите время прибытия!');
+                return;
+            }
+            if (!comment.trim()) {
+                alert('Заполните последнее поле!');
+                return;
+            }
+
+            // ID пользователя, открывшего форму в Telegram
+            const chatId = tg.initDataUnsafe?.user?.id;
+            if (!chatId) {
+                alert('Ошибка: Не удалось определить ваш Telegram ID. Откройте форму через кнопку в боте.');
+                return;
+            }
+
+            const reportText =
+                `📝 <b>НОВАЯ ЗАЯВКА НА БАЗУ</b>\n\n` +
+                `🔹 <b>1. Номер машины:</b> WR-<code>${carNumber}</code>\n` +
+                `🔹 <b>2. База назначения:</b> ${base}\n` +
+                `🔹 <b>3. Время прибытия:</b> ${arrivalTime}\n` +
+                `🔹 <b>4. Ремонт прицепа:</b> ${trailer}\n` +
+                `🔹 <b>5. Ремонт тягача:</b> ${truck}\n\n` +
+                `📋 <b>6. Что нужно получить:</b>\n<i>${comment}</i>`;
+
+            btn.disabled = true;
+            btn.textContent = 'Отправка...';
+
+            // Отправляем данные на СВОЙ backend, а не напрямую в Telegram.
+            // Backend сам знает токен бота и вызывает Bot API.
+            // Дополнительно передаём initData — backend проверяет её подлинность (см. api/send.js).
+            fetch(BACKEND_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: chatId,
+                    text: reportText,
+                    initData: tg.initData
+                })
+            })
+            .then(response => {
+                if (response.ok) {
+                    tg.close();
+                } else {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Ошибка отправки сообщения');
+                    });
+                }
+            })
+            .catch(error => {
+                alert('Ошибка: ' + error.message);
+                btn.disabled = false;
+                btn.textContent = 'Отправить заказ';
+            });
+        }
+    </script>
+</body>
+</html>

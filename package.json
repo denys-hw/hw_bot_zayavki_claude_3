@@ -1,0 +1,6 @@
+{
+  "name": "telegram-order-form",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Telegram Web App форма заказа + backend-функция для отправки структурированного сообщения через Bot API"
+}
